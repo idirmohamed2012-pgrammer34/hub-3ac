@@ -111,12 +111,17 @@ export default function LeconPage() {
         body: JSON.stringify({
           content: lesson!.content,
           title: lesson!.title,
+          subject: slug,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setMindmap(data);
-      setMessage("Carte mentale générée !");
+      setMessage(
+        ["histoire", "arabe", "islamique"].includes(slug)
+          ? "تمت إنشاء الخطاطة بالعربية ✓"
+          : "Carte mentale générée !"
+      );
     } catch (e: any) {
       setMessage(e.message || "Erreur");
     } finally {
@@ -129,6 +134,8 @@ export default function LeconPage() {
     await db.lessons.update(id, { mastered: newVal, updatedAt: Date.now() });
     setLesson((prev) => (prev ? { ...prev, mastered: newVal } : prev));
   }
+
+  const isArabicSubject = ["histoire", "arabe", "islamique"].includes(slug);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -199,7 +206,7 @@ export default function LeconPage() {
           ) : (
             <Network size={16} />
           )}
-          Carte mentale
+          {isArabicSubject ? "خطاطة ذهنية" : "Carte mentale"}
         </button>
 
         <Link
@@ -221,9 +228,12 @@ export default function LeconPage() {
       {mindmap && (
         <div className="space-y-3">
           <h2 className="font-semibold text-pink-300 flex items-center gap-2">
-            <Network size={18} /> Carte mentale
+            <Network size={18} />{" "}
+            {isArabicSubject ? "الخطاطة الذهنية" : "Carte mentale"}
           </h2>
-          <MindMap data={mindmap} />
+          <div dir={isArabicSubject ? "rtl" : "ltr"}>
+            <MindMap data={mindmap} />
+          </div>
         </div>
       )}
 

@@ -3,6 +3,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
+/** Matières qui génèrent les cartes mentales en arabe */
+const ARABIC_SUBJECTS = ["histoire", "arabe", "islamique"];
+
 export async function POST(req: NextRequest) {
   try {
     if (!process.env.GEMINI_API_KEY) {
@@ -12,13 +15,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { content, title } = await req.json();
+    const { content, title, subject } = await req.json();
     if (!content || content.length < 30) {
       return NextResponse.json(
         { error: "Contenu trop court" },
         { status: 400 }
       );
     }
+
+    const useArabic = ARABIC_SUBJECTS.includes(subject);
 
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
@@ -28,7 +33,39 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const prompt = `Tu es un professeur de 3ème année collège (Maroc).
+    const prompt = useArabic
+      ? `أنت أستاذ الاجتماعيات في السنة الثالثة إعدادي (المغرب - 3AC).
+انطلاقاً من هذا الدرس، أنشئ خطاطة ذهنية (mind map) منظمة.
+
+القواعد الصارمة:
+- عقدة جذرية واحدة (عنوان الموضوع)
+- من 3 إلى 6 فروع رئيسية
+- كل فرع يمكن أن يحتوي على 2 إلى 5 فروع فرعية
+- نص قصير وواضح (6 كلمات كحد أقصى لكل عقدة)
+- **كل النصوص يجب أن تكون بالعربية الفصحى**
+- مناسب لمستوى الثالثة إعدادي
+
+صيغة JSON الصارمة:
+{
+  "title": "العنوان الرئيسي",
+  "children": [
+    {
+      "title": "الفرع 1",
+      "children": [
+        { "title": "نقطة فرعية 1" },
+        { "title": "نقطة فرعية 2" }
+      ]
+    }
+  ]
+}
+
+عنوان الدرس: ${title || "الدرس"}
+
+المحتوى:
+"""
+${content}
+"""`
+      : `Tu es un professeur de 3ème année collège (Maroc).
 À partir de cette leçon, génère une carte mentale (mind map) structurée.
 
 Règles STRICTES :
