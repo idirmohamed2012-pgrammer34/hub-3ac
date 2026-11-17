@@ -17,9 +17,11 @@ export default function Sidebar() {
   return (
     <aside className="w-16 lg:w-64 border-r border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 h-screen flex flex-col shrink-0">
       <div className="p-4 lg:p-6 border-b border-slate-800">
-        <h1 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
-          🎓 <span className="hidden lg:inline">Hub 3AC</span>
-        </h1>
+        <Link href="/">
+          <h1 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
+            🎓 <span className="hidden lg:inline">Hub 3AC</span>
+          </h1>
+        </Link>
       </div>
       <nav className="flex-1 p-2 lg:p-3 space-y-1">
         {NAV.map(({ href, label, icon: Icon }) => {
@@ -41,6 +43,11 @@ export default function Sidebar() {
           );
         })}
       </nav>
+      <div className="p-3 border-t border-slate-800 hidden lg:block">
+        <p className="text-xs text-slate-500 text-center">
+          Révisions intelligentes
+        </p>
+      </div>
     </aside>
   );
 }
