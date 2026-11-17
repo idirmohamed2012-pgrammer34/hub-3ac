@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { db, Lesson } from "@/lib/db";
 import { SUBJECTS } from "@/lib/subjects";
 import Link from "next/link";
-import MindMap, { MindNode } from "@/components/mindmap/MindMap";
+import MindMap, { type MindNode } from "@/components/mindmap/MindMap";
 import {
   ArrowLeft,
   Sparkles,
@@ -51,6 +51,7 @@ export default function LeconPage() {
 
   const current = lesson;
   const isArabicSubject = ["histoire", "arabe", "islamique"].includes(slug);
+  const backHref = "/matieres/" + slug;
 
   async function generateSummary() {
     setLoadingSummary(true);
@@ -68,7 +69,7 @@ export default function LeconPage() {
         updatedAt: Date.now(),
       });
       setLesson((prev) => (prev ? { ...prev, summary: data.summary } : prev));
-      setMessage("Résumé généré ✓");
+      setMessage("Résumé généré");
     } catch (e: unknown) {
       setMessage(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -101,7 +102,7 @@ export default function LeconPage() {
           createdAt: now,
         });
       }
-      setMessage(`${data.cards.length} flashcards créées ✓");
+      setMessage(String(data.cards.length) + " flashcards créées");
     } catch (e: unknown) {
       setMessage(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -128,8 +129,8 @@ export default function LeconPage() {
       setMindmap(data);
       setMessage(
         isArabicSubject
-          ? "تم إنشاء الخطاطة الذهنية ✓"
-          : "Carte mentale générée ✓"
+          ? "تم إنشاء الخطاطة الذهنية"
+          : "Carte mentale générée"
       );
     } catch (e: unknown) {
       setMessage(e instanceof Error ? e.message : "Erreur");
@@ -150,9 +151,7 @@ export default function LeconPage() {
         createdAt: Date.now(),
       });
       setMessage(
-        isArabicSubject
-          ? "تم حفظ الخطاطة ✓ — انظر قائمة خطاطات"
-          : "Carte sauvegardée ✓ — voir menu خطاطات"
+        isArabicSubject ? "تم حفظ الخطاطة" : "Carte sauvegardée"
       );
     } catch (e: unknown) {
       setMessage(e instanceof Error ? e.message : "Erreur sauvegarde");
@@ -171,7 +170,7 @@ export default function LeconPage() {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Link
-          href={`/matieres/${slug}`}
+          href={backHref}
           className="p-2 rounded-lg hover:bg-slate-800 text-slate-400"
         >
           <ArrowLeft size={20} />
@@ -186,18 +185,18 @@ export default function LeconPage() {
         <button
           type="button"
           onClick={toggleMastered}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition shrink-0 ${
-            current.mastered
+          className={
+            "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition shrink-0 " +
+            (current.mastered
               ? "bg-green-500/20 text-green-400 border border-green-500/40"
-              : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-          }`}
+              : "bg-slate-800 text-slate-300 hover:bg-slate-700")
+          }
         >
           <CheckCircle2 size={16} />
           {current.mastered ? "Maîtrisé" : "Marquer maîtrisé"}
         </button>
       </div>
 
-      {/* Actions */}
       <div className="flex flex-wrap gap-3">
         <button
           type="button"
@@ -256,7 +255,6 @@ export default function LeconPage() {
         </p>
       )}
 
-      {/* Mind Map block */}
       {mindmap && (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -315,7 +313,6 @@ export default function LeconPage() {
         </div>
       </div>
 
-      {/* Fullscreen mindmap */}
       {fullscreen && mindmap && (
         <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur flex flex-col">
           <div className="flex items-center justify-between p-4 border-b border-slate-800">
