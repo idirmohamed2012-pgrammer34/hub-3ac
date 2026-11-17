@@ -6,22 +6,29 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { SUBJECTS } from "@/lib/subjects";
 import Link from "next/link";
-import { Plus, BookOpen, CheckCircle2, Circle, Trash2, Sparkles } from "lucide-react";
+import ImportLessonForm from "@/components/lessons/ImportLessonForm";
+import {
+  Plus,
+  BookOpen,
+  CheckCircle2,
+  Circle,
+  Trash2,
+  Sparkles,
+} from "lucide-react";
 
 export default function MatierePage() {
   const params = useParams();
   const slug = params.slug as string;
   const subject = SUBJECTS.find((s) => s.slug === slug);
 
-  const lessons = useLiveQuery(
-    () => db.lessons.where("subject").equals(slug).reverse().sortBy("updatedAt"),
-    [slug]
-  ) ?? [];
+  const lessons =
+    useLiveQuery(
+      () =>
+        db.lessons.where("subject").equals(slug).reverse().sortBy("updatedAt"),
+      [slug]
+    ) ?? [];
 
   const [showForm, setShowForm] = useState(false);
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [saving, setSaving] = useState(false);
 
   if (!subject) {
     return (
@@ -34,29 +41,23 @@ export default function MatierePage() {
     );
   }
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim() || !content.trim()) return;
-    setSaving(true);
-    try {
-      await db.lessons.add({
-        subject: slug,
-        title: title.trim(),
-        content: content.trim(),
-        mastered: false,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-      setTitle("");
-      setContent("");
-      setShowForm(false);
-    } finally {
-      setSaving(false);
-    }
+  async function handleSave(title: string, content: string) {
+    await db.lessons.add({
+      subject: slug,
+      title,
+      content,
+      mastered: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    setShowForm(false);
   }
 
   async function toggleMastered(id: number, current: boolean) {
-    await db.lessons.update(id, { mastered: !current, updatedAt: Date.now() });
+    await db.lessons.update(id, {
+      mastered: !current,
+      updatedAt: Date.now(),
+    });
   }
 
   async function deleteLesson(id: number) {
@@ -99,44 +100,13 @@ export default function MatierePage() {
         />
       </div>
 
-      {/* Create form */}
+      {/* Import form with multiple methods */}
       {showForm && (
-        <form
-          onSubmit={handleCreate}
-          className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4"
-        >
-          <h2 className="font-semibold text-lg">Ajouter une leçon</h2>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Titre de la leçon (ex: Les équations du 1er degré)"
-            className="w-full p-3 rounded-xl bg-slate-800 outline-none focus:ring-2 focus:ring-cyan-500"
-            required
-          />
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Colle ici le contenu de ta leçon (texte, notes, résumé...)"
-            className="w-full h-48 p-3 rounded-xl bg-slate-800 resize-none outline-none focus:ring-2 focus:ring-cyan-500"
-            required
-          />
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 rounded-xl font-semibold transition"
-            >
-              {saving ? "Enregistrement..." : "Enregistrer"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl transition"
-            >
-              Annuler
-            </button>
-          </div>
-        </form>
+        <ImportLessonForm
+          subject={slug}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
       )}
 
       {/* Lessons list */}
@@ -145,7 +115,7 @@ export default function MatierePage() {
           <BookOpen size={48} className="mx-auto text-slate-600 mb-4" />
           <p className="text-lg font-medium">Aucune leçon pour l'instant</p>
           <p className="text-slate-400 mt-1 text-sm">
-            Ajoute ta première leçon pour commencer à réviser
+            Colle du texte, importe un fichier, ou prends une photo de ton cahier
           </p>
         </div>
       ) : (
@@ -158,7 +128,9 @@ export default function MatierePage() {
               <button
                 onClick={() => toggleMastered(lesson.id!, lesson.mastered)}
                 className="shrink-0"
-                title={lesson.mastered ? "Marquer non maîtrisé" : "Marquer maîtrisé"}
+                title={
+                  lesson.mastered ? "Marquer non maîtrisé" : "Marquer maîtrisé"
+                }
               >
                 {lesson.mastered ? (
                   <CheckCircle2 className="text-green-400" size={22} />
