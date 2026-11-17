@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { db, Lesson } from "@/lib/db";
 import { SUBJECTS } from "@/lib/subjects";
 import Link from "next/link";
+import MindMap, { MindNode } from "@/components/mindmap/MindMap";
 import {
   ArrowLeft,
   Sparkles,
@@ -12,11 +13,11 @@ import {
   CheckCircle2,
   Loader2,
   Zap,
+  Network,
 } from "lucide-react";
 
 export default function LeconPage() {
   const params = useParams();
-  const router = useRouter();
   const slug = params.slug as string;
   const id = Number(params.id);
   const subject = SUBJECTS.find((s) => s.slug === slug);
@@ -24,6 +25,8 @@ export default function LeconPage() {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [loadingCards, setLoadingCards] = useState(false);
+  const [loadingMindmap, setLoadingMindmap] = useState(false);
+  const [mindmap, setMindmap] = useState<MindNode | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -97,6 +100,30 @@ export default function LeconPage() {
     }
   }
 
+  async function generateMindmap() {
+    setLoadingMindmap(true);
+    setMessage(null);
+    setMindmap(null);
+    try {
+      const res = await fetch("/api/mindmap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: lesson!.content,
+          title: lesson!.title,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setMindmap(data);
+      setMessage("Carte mentale générée !");
+    } catch (e: any) {
+      setMessage(e.message || "Erreur");
+    } finally {
+      setLoadingMindmap(false);
+    }
+  }
+
   async function toggleMastered() {
     const newVal = !lesson.mastered;
     await db.lessons.update(id, { mastered: newVal, updatedAt: Date.now() });
@@ -104,7 +131,7 @@ export default function LeconPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       {/* Nav */}
       <div className="flex items-center gap-3">
         <Link
@@ -123,7 +150,7 @@ export default function LeconPage() {
         <h1 className="text-3xl font-bold">{lesson.title}</h1>
         <button
           onClick={toggleMastered}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition shrink-0 ${
             lesson.mastered
               ? "bg-green-500/20 text-green-400 border border-green-500/40"
               : "bg-slate-800 text-slate-300 hover:bg-slate-700"
@@ -162,8 +189,21 @@ export default function LeconPage() {
           Générer flashcards
         </button>
 
+        <button
+          onClick={generateMindmap}
+          disabled={loadingMindmap}
+          className="flex items-center gap-2 px-4 py-2.5 bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/40 rounded-xl text-sm font-medium transition disabled:opacity-50"
+        >
+          {loadingMindmap ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Network size={16} />
+          )}
+          Carte mentale
+        </button>
+
         <Link
-          href={`/quiz?lesson=${encodeURIComponent(lesson.content.slice(0, 500))}`}
+          href="/quiz"
           className="flex items-center gap-2 px-4 py-2.5 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 border border-yellow-500/40 rounded-xl text-sm font-medium transition"
         >
           <Zap size={16} />
@@ -175,6 +215,16 @@ export default function LeconPage() {
         <p className="text-sm p-3 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
           {message}
         </p>
+      )}
+
+      {/* Mind Map */}
+      {mindmap && (
+        <div className="space-y-3">
+          <h2 className="font-semibold text-pink-300 flex items-center gap-2">
+            <Network size={18} /> Carte mentale
+          </h2>
+          <MindMap data={mindmap} />
+        </div>
       )}
 
       {/* Summary */}
