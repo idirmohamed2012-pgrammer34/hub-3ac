@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, type FormEvent, type ChangeEvent } from "react";
 import {
   Type,
   FileText,
@@ -31,22 +31,22 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
     setSaving(true);
     setError(null);
     try {
       await onSave(title.trim(), content.trim());
-    } catch (err: any) {
-      setError(err.message || "Erreur");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur");
     } finally {
       setSaving(false);
     }
   }
 
   /** .txt / .md → lecture locale ; .pdf → Gemini */
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setError(null);
@@ -54,7 +54,6 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
 
     const ext = file.name.split(".").pop()?.toLowerCase();
 
-    // Texte brut : lecture locale
     if (ext === "txt" || ext === "md" || ext === "text") {
       const reader = new FileReader();
       reader.onload = () => {
@@ -68,7 +67,6 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
       return;
     }
 
-    // PDF (ou autre) → envoi à Gemini
     if (ext === "pdf" || file.type === "application/pdf") {
       setExtracting(true);
       try {
@@ -97,8 +95,8 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
         if (!title && data.suggestedTitle) {
           setTitle(data.suggestedTitle);
         }
-      } catch (err: any) {
-        setError(err.message || "Erreur d'extraction PDF");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Erreur d'extraction PDF");
         setFileName(null);
       } finally {
         setExtracting(false);
@@ -111,7 +109,7 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
   }
 
   /** Photo → OCR via Gemini Vision */
-  async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhoto(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setError(null);
@@ -148,8 +146,8 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
 
       setContent(data.text);
       if (!title) setTitle("Leçon depuis photo");
-    } catch (err: any) {
-      setError(err.message || "Erreur d'extraction");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur d'extraction");
       setPreview(null);
     } finally {
       setExtracting(false);
@@ -184,7 +182,6 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
         </button>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 p-1 bg-slate-800 rounded-xl">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button
@@ -203,7 +200,6 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
         ))}
       </div>
 
-      {/* Title */}
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
@@ -212,7 +208,6 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
         required
       />
 
-      {/* Tab: Paste */}
       {tab === "paste" && (
         <textarea
           value={content}
@@ -223,7 +218,6 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
         />
       )}
 
-      {/* Tab: File (PDF + txt + md) */}
       {tab === "file" && (
         <div className="space-y-3">
           {!fileName ? (
@@ -247,9 +241,7 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
                   <span className="text-sm font-medium">
                     Clique pour choisir un fichier
                   </span>
-                  <span className="text-xs text-slate-500">
-                    PDF · TXT · MD
-                  </span>
+                  <span className="text-xs text-slate-500">PDF · TXT · MD</span>
                 </>
               )}
             </button>
@@ -291,7 +283,6 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
         </div>
       )}
 
-      {/* Tab: Photo */}
       {tab === "photo" && (
         <div className="space-y-3">
           {!preview ? (
@@ -316,6 +307,7 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
             </button>
           ) : (
             <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={preview}
                 alt="Aperçu"

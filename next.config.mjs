@@ -19,6 +19,10 @@ const withPWA = withPWAInit({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Évite les erreurs de build sur les icônes PWA manquantes
+  images: {
+    unoptimized: true,
+  },
 };
 
 export default withPWA(nextConfig);
