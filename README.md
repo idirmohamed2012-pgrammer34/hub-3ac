@@ -1,92 +1,45 @@
-# 🎓 Hub 3AC — Révisions Personnelles
+# Hub 3AC — Révisions 3ème collège (Maroc)
 
-Tableau de bord de révisions intelligent pour la **3ème année collège (Maroc)**.
+## Fonctionnalités
 
-**Stack** : Next.js 14 • Tailwind • Dexie (IndexedDB) • Gemini 1.5 Flash • SM-2 • **PWA**
+| Module | Description |
+|--------|-------------|
+| **Dashboard** | Stats, progression, raccourcis |
+| **Matières / Leçons** | CRUD + import **texte / PDF / photo OCR** |
+| **Quiz IA** | QCM Gemini depuis une leçon |
+| **Examen blanc** | QCM chronométré |
+| **Flashcards** | SM-2 + création manuelle + IA |
+| **خطاطات / Mind maps** | IA FR ou AR + sauvegarde + plein écran |
+| **Résumé IA** | Synthèse d'une leçon |
+| **Stats** | Graphiques + historique |
+| **Paramètres** | Export / import JSON, seed, reset |
+| **PWA** | Installable + offline |
 
----
-
-## ✨ Fonctionnalités
-
-| Feature | Description |
-|---------|-------------|
-| 📊 Dashboard | Progression par matière + stats |
-| 📚 Leçons | Créer, consulter, marquer maîtrisé |
-| ⚡ Quiz IA | Génération QCM à partir d'une leçon (Gemini) |
-| 💡 Résumé IA | Résumé automatique d'une leçon |
-| 🃏 Flashcards SRS | Répétition espacée (SM-2) + génération IA |
-| 📈 Stats | Graphiques + historique |
-| 📱 PWA | Installable + offline |
-| 🌱 Seed | Données d'exemple en 1 clic |
-
----
-
-## 🚀 Installation
+## Setup
 
 ```bash
-git clone https://github.com/idirmohamed2012-pgrammer34/hub-3ac.git
-cd hub-3ac
 npm install
 ```
 
-Crée `.env.local` :
+`.env.local` :
 
-```env
-GEMINI_API_KEY=ta_clé_ici
+```
+GEMINI_API_KEY=ta_cle_google_ai_studio
 ```
 
-> Clé gratuite : [Google AI Studio](https://aistudio.google.com/apikey)
+Sur **Vercel** : Project → Settings → Environment Variables → `GEMINI_API_KEY`
 
 ```bash
 npm run dev
 ```
 
-Ouvre [http://localhost:3000](http://localhost:3000)
+## Parcours type
 
----
+1. Dashboard → **Charger données d'exemple** (ou ouvrir une matière)
+2. Matière → **Nouvelle leçon** (coller / PDF / photo)
+3. Ouvrir la leçon → Résumer / Flashcards / خطاطة / Quiz
+4. Réviser dans Flashcards + Examen blanc
 
-## 📱 PWA
+## Note API
 
-```bash
-npm run build && npm start
-```
-
-Puis installe l'app depuis Chrome / Safari.
-
----
-
-## 📁 Structure clé
-
-```
-app/
-  matieres/[slug]/          # Liste des leçons d'une matière
-  matieres/[slug]/lecon/[id]/ # Détail leçon + actions IA
-  quiz/                     # Générateur QCM
-  flashcards/               # Révision SRS
-  stats/
-  api/
-    quiz/                   # Gemini → QCM
-    summary/                # Gemini → résumé
-    flashcards/             # Gemini → flashcards
-lib/
-  db.ts                     # Dexie schema
-  srs.ts                    # SM-2
-  seed.ts                   # Données d'exemple
-  subjects.ts
-```
-
----
-
-## 🎯 Comment utiliser
-
-1. Clique sur **« Charger données d'exemple »** sur le dashboard (première visite)
-2. Ouvre une matière → ajoute tes propres leçons
-3. Dans une leçon :
-   - **Résumer avec IA**
-   - **Générer flashcards**
-   - **Faire un quiz**
-4. Révise tes flashcards chaque jour (algorithme SM-2)
-
----
-
-Fait avec ❤️ pour les collégiens marocains.
+Sans `GEMINI_API_KEY`, l'interface marche mais **aucune génération IA** (quiz, résumé, PDF, OCR, mind map).

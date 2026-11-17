@@ -2,14 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Zap, Layers, BarChart3, Network } from "lucide-react";
+import {
+  Home,
+  Zap,
+  Layers,
+  BarChart3,
+  Network,
+  Timer,
+  Settings,
+} from "lucide-react";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/quiz", label: "Quiz IA", icon: Zap },
+  { href: "/examen", label: "Examen blanc", icon: Timer },
   { href: "/flashcards", label: "Flashcards", icon: Layers },
   { href: "/mindmaps", label: "خطاطات", icon: Network },
-  { href: "/stats", label: "Statistiques", icon: BarChart3 },
+  { href: "/stats", label: "Stats", icon: BarChart3 },
+  { href: "/settings", label: "Paramètres", icon: Settings },
 ];
 
 export default function Sidebar() {
@@ -24,7 +34,7 @@ export default function Sidebar() {
           </h1>
         </Link>
       </div>
-      <nav className="flex-1 p-2 lg:p-3 space-y-1">
+      <nav className="flex-1 p-2 lg:p-3 space-y-1 overflow-y-auto">
         {NAV.map(({ href, label, icon: Icon }) => {
           const active =
             pathname === href || (href !== "/" && pathname.startsWith(href));
@@ -32,23 +42,19 @@ export default function Sidebar() {
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-3 lg:px-4 py-3 rounded-xl transition ${
-                active
+              className={
+                "flex items-center gap-3 px-3 lg:px-4 py-3 rounded-xl transition " +
+                (active
                   ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
-                  : "hover:bg-slate-800 text-slate-300"
-              }`}
+                  : "hover:bg-slate-800 text-slate-300")
+              }
             >
               <Icon size={20} className="shrink-0" />
-              <span className="hidden lg:inline font-medium">{label}</span>
+              <span className="hidden lg:inline font-medium text-sm">{label}</span>
             </Link>
           );
         })}
       </nav>
-      <div className="p-3 border-t border-slate-800 hidden lg:block">
-        <p className="text-xs text-slate-500 text-center">
-          Révisions intelligentes · 3AC
-        </p>
-      </div>
     </aside>
   );
 }
