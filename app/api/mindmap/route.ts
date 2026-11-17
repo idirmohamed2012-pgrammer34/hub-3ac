@@ -3,7 +3,6 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
-/** Matières qui génèrent les cartes mentales en arabe */
 const ARABIC_SUBJECTS = ["histoire", "arabe", "islamique"];
 
 export async function POST(req: NextRequest) {
@@ -16,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { content, title, subject } = await req.json();
-    if (!content || content.length < 30) {
+    if (!content || content.length < 20) {
       return NextResponse.json(
         { error: "Contenu trop court" },
         { status: 400 }
@@ -29,31 +28,32 @@ export async function POST(req: NextRequest) {
       model: "gemini-1.5-flash",
       generationConfig: {
         responseMimeType: "application/json",
-        temperature: 0.5,
+        temperature: 0.45,
       },
     });
 
     const prompt = useArabic
-      ? `أنت أستاذ الاجتماعيات في السنة الثالثة إعدادي (المغرب - 3AC).
-انطلاقاً من هذا الدرس، أنشئ خطاطة ذهنية (mind map) منظمة.
+      ? `أنت أستاذ الاجتماعيات / العربية في السنة الثالثة إعدادي بالمغرب (3AC).
+أنشئ خطاطة ذهنية غنية ومنظمة انطلاقاً من هذا الدرس.
 
-القواعد الصارمة:
-- عقدة جذرية واحدة (عنوان الموضوع)
-- من 3 إلى 6 فروع رئيسية
-- كل فرع يمكن أن يحتوي على 2 إلى 5 فروع فرعية
-- نص قصير وواضح (6 كلمات كحد أقصى لكل عقدة)
-- **كل النصوص يجب أن تكون بالعربية الفصحى**
+القواعد:
+- عقدة جذرية = عنوان الموضوع
+- 4 إلى 7 فروع رئيسية
+- كل فرع: 2 إلى 5 فروع فرعية (ويمكن مستوى ثالث إن لزم)
+- كل عقدة: جملة قصيرة جداً (3–7 كلمات)
+- **كل النصوص بالعربية الفصحى الواضحة**
+- ركّز على المفاهيم الأساسية، التواريخ، الأسباب، النتائج، التعاريف
 - مناسب لمستوى الثالثة إعدادي
 
-صيغة JSON الصارمة:
+صيغة JSON فقط:
 {
-  "title": "العنوان الرئيسي",
+  "title": "العنوان",
   "children": [
     {
-      "title": "الفرع 1",
+      "title": "فرع",
       "children": [
-        { "title": "نقطة فرعية 1" },
-        { "title": "نقطة فرعية 2" }
+        { "title": "نقطة" },
+        { "title": "نقطة", "children": [{ "title": "تفصيل" }] }
       ]
     }
   ]
@@ -66,31 +66,32 @@ export async function POST(req: NextRequest) {
 ${content}
 """`
       : `Tu es un professeur de 3ème année collège (Maroc).
-À partir de cette leçon, génère une carte mentale (mind map) structurée.
+Crée une carte mentale RICHE et structurée à partir de cette leçon.
 
-Règles STRICTES :
-- Un nœud racine (le titre du sujet)
-- 3 à 6 branches principales
-- Chaque branche peut avoir 2 à 5 sous-branches
-- Texte court et clair (max 6 mots par nœud)
-- En français
-- Adapté au niveau 3AC
+Règles :
+- Nœud racine = titre du sujet
+- 4 à 7 branches principales
+- Chaque branche : 2 à 5 sous-branches (niveau 3 si utile)
+- Chaque nœud : phrase très courte (3–7 mots)
+- En français clair
+- Focus : définitions, formules, étapes, causes/conséquences
+- Niveau 3AC
 
-Format JSON strict :
+JSON uniquement :
 {
-  "title": "Titre principal",
+  "title": "Titre",
   "children": [
     {
-      "title": "Branche 1",
+      "title": "Branche",
       "children": [
-        { "title": "Sous-point 1" },
-        { "title": "Sous-point 2" }
+        { "title": "Point" },
+        { "title": "Point", "children": [{ "title": "Détail" }] }
       ]
     }
   ]
 }
 
-Titre de la leçon : ${title || "Leçon"}
+Titre : ${title || "Leçon"}
 
 Contenu :
 """
@@ -101,10 +102,10 @@ ${content}
     const text = result.response.text();
     const parsed = JSON.parse(text);
     return NextResponse.json(parsed);
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error(e);
     return NextResponse.json(
-      { error: e.message || "Erreur" },
+      { error: e instanceof Error ? e.message : "Erreur" },
       { status: 500 }
     );
   }

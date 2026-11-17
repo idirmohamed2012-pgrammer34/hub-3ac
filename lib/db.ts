@@ -34,10 +34,25 @@ export interface Flashcard {
   createdAt: number;
 }
 
+export interface MindNode {
+  title: string;
+  children?: MindNode[];
+}
+
+export interface SavedMindMap {
+  id?: number;
+  lessonId?: number;
+  subject: string;
+  title: string;
+  data: MindNode;
+  createdAt: number;
+}
+
 export class HubDB extends Dexie {
   lessons!: Table<Lesson>;
   attempts!: Table<QuizAttempt>;
   flashcards!: Table<Flashcard>;
+  mindmaps!: Table<SavedMindMap>;
 
   constructor() {
     super("hub-3ac");
@@ -45,6 +60,13 @@ export class HubDB extends Dexie {
       lessons: "++id, subject, mastered, updatedAt",
       attempts: "++id, subject, createdAt",
       flashcards: "++id, subject, dueDate",
+    });
+    // v2: mind maps
+    this.version(2).stores({
+      lessons: "++id, subject, mastered, updatedAt",
+      attempts: "++id, subject, createdAt",
+      flashcards: "++id, subject, dueDate",
+      mindmaps: "++id, subject, lessonId, createdAt",
     });
   }
 }

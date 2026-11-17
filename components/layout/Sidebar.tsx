@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BookOpen, Zap, Layers, BarChart3 } from "lucide-react";
+import { Home, Zap, Layers, BarChart3, Network } from "lucide-react";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/quiz", label: "Quiz IA", icon: Zap },
   { href: "/flashcards", label: "Flashcards", icon: Layers },
+  { href: "/mindmaps", label: "خطاطات", icon: Network },
   { href: "/stats", label: "Statistiques", icon: BarChart3 },
 ];
 
@@ -45,7 +46,7 @@ export default function Sidebar() {
       </nav>
       <div className="p-3 border-t border-slate-800 hidden lg:block">
         <p className="text-xs text-slate-500 text-center">
-          Révisions intelligentes
+          Révisions intelligentes · 3AC
         </p>
       </div>
     </aside>

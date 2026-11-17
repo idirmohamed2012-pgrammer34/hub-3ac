@@ -14,6 +14,10 @@ import {
   Loader2,
   Zap,
   Network,
+  Save,
+  Maximize2,
+  X,
+  RefreshCw,
 } from "lucide-react";
 
 export default function LeconPage() {
@@ -28,6 +32,8 @@ export default function LeconPage() {
   const [loadingMindmap, setLoadingMindmap] = useState(false);
   const [mindmap, setMindmap] = useState<MindNode | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [savingMap, setSavingMap] = useState(false);
 
   useEffect(() => {
     db.lessons.get(id).then((l) => {
@@ -43,8 +49,8 @@ export default function LeconPage() {
     );
   }
 
-  // Narrowed non-null copy for closures (TS)
   const current = lesson;
+  const isArabicSubject = ["histoire", "arabe", "islamique"].includes(slug);
 
   async function generateSummary() {
     setLoadingSummary(true);
@@ -62,7 +68,7 @@ export default function LeconPage() {
         updatedAt: Date.now(),
       });
       setLesson((prev) => (prev ? { ...prev, summary: data.summary } : prev));
-      setMessage("Résumé généré avec succès !");
+      setMessage("Résumé généré ✓");
     } catch (e: unknown) {
       setMessage(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -95,7 +101,7 @@ export default function LeconPage() {
           createdAt: now,
         });
       }
-      setMessage(`${data.cards.length} flashcards créées ! Va les réviser.`);
+      setMessage(`${data.cards.length} flashcards créées ✓");
     } catch (e: unknown) {
       setMessage(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -121,9 +127,9 @@ export default function LeconPage() {
       if (!res.ok) throw new Error(data.error);
       setMindmap(data);
       setMessage(
-        ["histoire", "arabe", "islamique"].includes(slug)
-          ? "تمت إنشاء الخطاطة بالعربية ✓"
-          : "Carte mentale générée !"
+        isArabicSubject
+          ? "تم إنشاء الخطاطة الذهنية ✓"
+          : "Carte mentale générée ✓"
       );
     } catch (e: unknown) {
       setMessage(e instanceof Error ? e.message : "Erreur");
@@ -132,13 +138,34 @@ export default function LeconPage() {
     }
   }
 
+  async function saveMindmap() {
+    if (!mindmap) return;
+    setSavingMap(true);
+    try {
+      await db.mindmaps.add({
+        lessonId: id,
+        subject: slug,
+        title: mindmap.title || current.title,
+        data: mindmap,
+        createdAt: Date.now(),
+      });
+      setMessage(
+        isArabicSubject
+          ? "تم حفظ الخطاطة ✓ — انظر قائمة خطاطات"
+          : "Carte sauvegardée ✓ — voir menu خطاطات"
+      );
+    } catch (e: unknown) {
+      setMessage(e instanceof Error ? e.message : "Erreur sauvegarde");
+    } finally {
+      setSavingMap(false);
+    }
+  }
+
   async function toggleMastered() {
     const newVal = !current.mastered;
     await db.lessons.update(id, { mastered: newVal, updatedAt: Date.now() });
     setLesson((prev) => (prev ? { ...prev, mastered: newVal } : prev));
   }
-
-  const isArabicSubject = ["histoire", "arabe", "islamique"].includes(slug);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -157,6 +184,7 @@ export default function LeconPage() {
       <div className="flex items-start justify-between gap-4">
         <h1 className="text-3xl font-bold">{current.title}</h1>
         <button
+          type="button"
           onClick={toggleMastered}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition shrink-0 ${
             current.mastered
@@ -169,8 +197,10 @@ export default function LeconPage() {
         </button>
       </div>
 
+      {/* Actions */}
       <div className="flex flex-wrap gap-3">
         <button
+          type="button"
           onClick={generateSummary}
           disabled={loadingSummary}
           className="flex items-center gap-2 px-4 py-2.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 rounded-xl text-sm font-medium transition disabled:opacity-50"
@@ -180,10 +210,11 @@ export default function LeconPage() {
           ) : (
             <Sparkles size={16} />
           )}
-          Résumer avec IA
+          Résumer IA
         </button>
 
         <button
+          type="button"
           onClick={generateFlashcards}
           disabled={loadingCards}
           className="flex items-center gap-2 px-4 py-2.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 rounded-xl text-sm font-medium transition disabled:opacity-50"
@@ -193,10 +224,11 @@ export default function LeconPage() {
           ) : (
             <Layers size={16} />
           )}
-          Générer flashcards
+          Flashcards
         </button>
 
         <button
+          type="button"
           onClick={generateMindmap}
           disabled={loadingMindmap}
           className="flex items-center gap-2 px-4 py-2.5 bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/40 rounded-xl text-sm font-medium transition disabled:opacity-50"
@@ -214,7 +246,7 @@ export default function LeconPage() {
           className="flex items-center gap-2 px-4 py-2.5 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 border border-yellow-500/40 rounded-xl text-sm font-medium transition"
         >
           <Zap size={16} />
-          Faire un quiz
+          Quiz
         </Link>
       </div>
 
@@ -224,14 +256,43 @@ export default function LeconPage() {
         </p>
       )}
 
+      {/* Mind Map block */}
       {mindmap && (
         <div className="space-y-3">
-          <h2 className="font-semibold text-pink-300 flex items-center gap-2">
-            <Network size={18} />{" "}
-            {isArabicSubject ? "الخطاطة الذهنية" : "Carte mentale"}
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold text-pink-300 flex items-center gap-2">
+              <Network size={18} />{" "}
+              {isArabicSubject ? "الخطاطة الذهنية" : "Carte mentale"}
+            </h2>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={generateMindmap}
+                disabled={loadingMindmap}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 rounded-lg transition"
+              >
+                <RefreshCw size={12} /> Régénérer
+              </button>
+              <button
+                type="button"
+                onClick={saveMindmap}
+                disabled={savingMap}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/30 rounded-lg transition"
+              >
+                <Save size={12} />{" "}
+                {savingMap ? "..." : isArabicSubject ? "حفظ" : "Sauvegarder"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFullscreen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 rounded-lg transition"
+              >
+                <Maximize2 size={12} /> Plein écran
+              </button>
+            </div>
+          </div>
           <div dir={isArabicSubject ? "rtl" : "ltr"}>
-            <MindMap data={mindmap} />
+            <MindMap data={mindmap} expandAll />
           </div>
         </div>
       )}
@@ -249,10 +310,32 @@ export default function LeconPage() {
 
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
         <h2 className="font-semibold mb-4 text-slate-300">Contenu de la leçon</h2>
-        <div className="prose prose-invert max-w-none text-slate-300 whitespace-pre-wrap leading-relaxed">
+        <div className="text-slate-300 whitespace-pre-wrap leading-relaxed">
           {current.content}
         </div>
       </div>
+
+      {/* Fullscreen mindmap */}
+      {fullscreen && mindmap && (
+        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b border-slate-800">
+            <h2 className="font-bold text-xl">{mindmap.title}</h2>
+            <button
+              type="button"
+              onClick={() => setFullscreen(false)}
+              className="p-2 rounded-lg hover:bg-slate-800"
+            >
+              <X size={22} />
+            </button>
+          </div>
+          <div
+            className="flex-1 overflow-auto p-6"
+            dir={isArabicSubject ? "rtl" : "ltr"}
+          >
+            <MindMap data={mindmap} expandAll />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
