@@ -8,7 +8,6 @@ import {
   Loader2,
   Upload,
   X,
-  Image as ImageIcon,
 } from "lucide-react";
 
 type Tab = "paste" | "file" | "photo";
@@ -26,6 +25,7 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
   const [saving, setSaving] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -45,26 +45,69 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
     }
   }
 
-  /** Lecture fichier .txt / .md */
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  /** .txt / .md → lecture locale ; .pdf → Gemini */
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setError(null);
+    setFileName(file.name);
 
-    if (!file.name.match(/\.(txt|md|text)$/i)) {
-      setError("Formats acceptés : .txt, .md");
+    const ext = file.name.split(".").pop()?.toLowerCase();
+
+    // Texte brut : lecture locale
+    if (ext === "txt" || ext === "md" || ext === "text") {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = reader.result as string;
+        setContent(text);
+        if (!title) {
+          setTitle(file.name.replace(/\.(txt|md|text)$/i, ""));
+        }
+      };
+      reader.readAsText(file, "UTF-8");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = reader.result as string;
-      setContent(text);
-      if (!title) {
-        setTitle(file.name.replace(/\.(txt|md|text)$/i, ""));
+    // PDF (ou autre) → envoi à Gemini
+    if (ext === "pdf" || file.type === "application/pdf") {
+      setExtracting(true);
+      try {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        const res = await fetch("/api/extract-file", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data: base64,
+            mimeType: "application/pdf",
+            fileName: file.name,
+            subject,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Échec de l'extraction PDF");
+
+        setContent(data.text);
+        if (!title && data.suggestedTitle) {
+          setTitle(data.suggestedTitle);
+        }
+      } catch (err: any) {
+        setError(err.message || "Erreur d'extraction PDF");
+        setFileName(null);
+      } finally {
+        setExtracting(false);
       }
-    };
-    reader.readAsText(file, "UTF-8");
+      return;
+    }
+
+    setError("Formats acceptés : .pdf, .txt, .md");
+    setFileName(null);
   }
 
   /** Photo → OCR via Gemini Vision */
@@ -78,13 +121,11 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
       return;
     }
 
-    // Preview
     const previewUrl = URL.createObjectURL(file);
     setPreview(previewUrl);
-
     setExtracting(true);
+
     try {
-      // Convert to base64
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
@@ -106,15 +147,19 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
       if (!res.ok) throw new Error(data.error || "Échec de l'extraction");
 
       setContent(data.text);
-      if (!title) {
-        setTitle("Leçon depuis photo");
-      }
+      if (!title) setTitle("Leçon depuis photo");
     } catch (err: any) {
       setError(err.message || "Erreur d'extraction");
       setPreview(null);
     } finally {
       setExtracting(false);
     }
+  }
+
+  function clearFile() {
+    setFileName(null);
+    setContent("");
+    if (fileRef.current) fileRef.current.value = "";
   }
 
   const tabs: { id: Tab; label: string; icon: typeof Type }[] = [
@@ -130,7 +175,11 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
     >
       <div className="flex items-center justify-between">
         <h2 className="font-semibold text-lg">Ajouter une leçon</h2>
-        <button type="button" onClick={onCancel} className="p-1 text-slate-400 hover:text-white">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="p-1 text-slate-400 hover:text-white"
+        >
           <X size={20} />
         </button>
       </div>
@@ -154,7 +203,7 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
         ))}
       </div>
 
-      {/* Title always visible */}
+      {/* Title */}
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
@@ -163,45 +212,86 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
         required
       />
 
-      {/* Tab content */}
+      {/* Tab: Paste */}
       {tab === "paste" && (
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="Colle ici le contenu de ta leçon (texte, notes, résumé...)"
+          placeholder="Colle ici le contenu de ta leçon..."
           className="w-full h-52 p-3 rounded-xl bg-slate-800 resize-none outline-none focus:ring-2 focus:ring-cyan-500"
           required
         />
       )}
 
+      {/* Tab: File (PDF + txt + md) */}
       {tab === "file" && (
         <div className="space-y-3">
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="w-full h-36 border-2 border-dashed border-slate-700 hover:border-cyan-500/50 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-cyan-300 transition"
-          >
-            <Upload size={28} />
-            <span className="text-sm">Clique pour choisir un fichier</span>
-            <span className="text-xs text-slate-500">.txt ou .md</span>
-          </button>
+          {!fileName ? (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={extracting}
+              className="w-full h-40 border-2 border-dashed border-slate-700 hover:border-cyan-500/50 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-cyan-300 transition disabled:opacity-50"
+            >
+              {extracting ? (
+                <>
+                  <Loader2 size={28} className="animate-spin" />
+                  <span className="text-sm">Extraction du PDF en cours...</span>
+                  <span className="text-xs text-slate-500">
+                    Gemini lit ton document
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Upload size={28} />
+                  <span className="text-sm font-medium">
+                    Clique pour choisir un fichier
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    PDF · TXT · MD
+                  </span>
+                </>
+              )}
+            </button>
+          ) : (
+            <div className="flex items-center gap-3 p-4 bg-slate-800 rounded-xl">
+              <FileText size={24} className="text-cyan-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{fileName}</p>
+                <p className="text-xs text-slate-500">
+                  {extracting ? "Extraction..." : "Fichier chargé"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={clearFile}
+                className="p-1.5 text-slate-400 hover:text-white"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
           <input
             ref={fileRef}
             type="file"
-            accept=".txt,.md,.text,text/plain,text/markdown"
+            accept=".pdf,.txt,.md,.text,application/pdf,text/plain,text/markdown"
             onChange={handleFile}
             className="hidden"
           />
-          {content && (
+
+          {content && !extracting && (
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="w-full h-40 p-3 rounded-xl bg-slate-800 resize-none outline-none focus:ring-2 focus:ring-cyan-500 text-sm"
+              className="w-full h-44 p-3 rounded-xl bg-slate-800 resize-none outline-none focus:ring-2 focus:ring-cyan-500 text-sm"
+              placeholder="Texte extrait — tu peux le corriger"
             />
           )}
         </div>
       )}
 
+      {/* Tab: Photo */}
       {tab === "photo" && (
         <div className="space-y-3">
           {!preview ? (
@@ -209,7 +299,7 @@ export default function ImportLessonForm({ subject, onSave, onCancel }: Props) {
               type="button"
               onClick={() => photoRef.current?.click()}
               disabled={extracting}
-              className="w-full h-36 border-2 border-dashed border-slate-700 hover:border-pink-500/50 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-pink-300 transition disabled:opacity-50"
+              className="w-full h-40 border-2 border-dashed border-slate-700 hover:border-pink-500/50 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-pink-300 transition disabled:opacity-50"
             >
               {extracting ? (
                 <>
