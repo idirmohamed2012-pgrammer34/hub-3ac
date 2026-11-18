@@ -53,3 +53,7 @@ Après avoir ajouté ou modifié les variables, redéploie le projet.
 Toutes les fonctions IA passent par `lib/ai.ts` et le SDK officiel `@google/genai` via l'API Interactions : résumé, quiz, flashcards, cartes mentales, OCR photo et extraction PDF. La clé reste côté serveur ; elle n'est jamais envoyée au navigateur.
 
 Si `GEMINI_API_KEY` est absente ou invalide, les routes IA retournent une erreur explicite.
+
+### Résilience Gemini
+
+Le modèle principal est `gemini-3.8-flash`. En cas de surcharge temporaire (HTTP 429/500/502/503/504), le serveur réessaie automatiquement avec un délai progressif et bascule vers `gemini-3.5-flash-lite`, puis `gemini-3.6-flash`. Si tous les modèles sont indisponibles, un message clair invite à réessayer plus tard. Les erreurs permanentes (clé invalide, requête incorrecte) ne déclenchent pas de bascule.
