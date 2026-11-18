@@ -5,7 +5,7 @@
 | Module | Description |
 |--------|-------------|
 | **Dashboard** | Stats, progression, raccourcis |
-| **Matières / Leçons** | CRUD + import **texte / PDF / photo OCR** |
+| **Matières / Leçons** | CRUD + import texte / PDF / photo OCR |
 | **Quiz IA** | QCM Gemini depuis une leçon |
 | **Examen blanc** | QCM chronométré |
 | **Flashcards** | SM-2 + création manuelle + IA |
@@ -15,23 +15,31 @@
 | **Paramètres** | Export / import JSON, seed, reset |
 | **PWA** | Installable + offline |
 
-## Setup
+## Installation
 
 ```bash
 npm install
 ```
 
-`.env.local` :
+Crée un fichier `.env.local` :
 
-```
+```env
 GEMINI_API_KEY=ta_cle_google_ai_studio
+# Facultatif : le modèle par défaut est gemini-3.8-flash
+GEMINI_MODEL=gemini-3.8-flash
 ```
 
-Sur **Vercel** : Project → Settings → Environment Variables → `GEMINI_API_KEY`
+Obtiens une clé sur [Google AI Studio](https://aistudio.google.com/apikey), puis lance :
 
 ```bash
 npm run dev
 ```
+
+## Déploiement Vercel
+
+Dans **Project → Settings → Environment Variables**, ajoute `GEMINI_API_KEY` pour Production, Preview et Development. Tu peux aussi définir `GEMINI_MODEL` ; si elle est absente, le projet utilise `gemini-3.8-flash`.
+
+Après avoir ajouté ou modifié les variables, redéploie le projet.
 
 ## Parcours type
 
@@ -40,6 +48,8 @@ npm run dev
 3. Ouvrir la leçon → Résumer / Flashcards / خطاطة / Quiz
 4. Réviser dans Flashcards + Examen blanc
 
-## Note API
+## Architecture IA
 
-Sans `GEMINI_API_KEY`, l'interface marche mais **aucune génération IA** (quiz, résumé, PDF, OCR, mind map).
+Toutes les fonctions IA passent par `lib/ai.ts` et le SDK officiel `@google/genai` via l'API Interactions : résumé, quiz, flashcards, cartes mentales, OCR photo et extraction PDF. La clé reste côté serveur ; elle n'est jamais envoyée au navigateur.
+
+Si `GEMINI_API_KEY` est absente ou invalide, les routes IA retournent une erreur explicite.

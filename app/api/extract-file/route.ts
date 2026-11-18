@@ -1,84 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { errorMessage, generateWithGemini } from "@/lib/ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY manquante" },
-        { status: 500 }
-      );
-    }
-
     const { data, mimeType, fileName, subject } = await req.json();
-
-    if (!data) {
-      return NextResponse.json(
-        { error: "Aucun fichier fourni" },
-        { status: 400 }
-      );
+    if (typeof data !== "string" || !data.trim()) {
+      return NextResponse.json({ error: "Aucun fichier fourni" }, { status: 400 });
+    }
+    const normalizedMime = mimeType === "application/pdf" ? "application/pdf"
+      : mimeType === "image/png" ? "image/png"
+      : mimeType === "image/webp" ? "image/webp"
+      : mimeType === "image/jpeg" ? "image/jpeg" : null;
+    if (!normalizedMime) {
+      return NextResponse.json({ error: "Format non pris en charge. Utilise un PDF, PNG, JPG ou WebP." }, { status: 415 });
     }
 
-    // Strip data URL prefix if present
-    const base64 = data.replace(/^data:[^;]+;base64,/, "");
+    const base64 = data.replace(/^data:[^;]+;base64,/i, "").replace(/\s/g, "");
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64) || base64.length > 18_000_000) {
+      return NextResponse.json({ error: "Fichier invalide ou trop volumineux (maximum environ 13 Mo)." }, { status: 400 });
+    }
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      generationConfig: { temperature: 0.1 },
-    });
+    const arabic = ["histoire", "arabe", "islamique"].includes(subject);
+    const prompt = arabic
+      ? "استخرج النص الكامل المقروء من هذا الملف المدرسي. حافظ على العناوين والفقرات والقوائم والجداول قدر الإمكان، وأبقِ اللغة الأصلية. لا تلخص ولا تضف شرحاً. أعد النص المستخرج فقط."
+      : "Extrais fidèlement tout le texte lisible de ce document scolaire. Préserve les titres, paragraphes, listes et tableaux autant que possible, dans la langue d'origine. Ne résume pas et n'ajoute aucune explication. Retourne uniquement le texte extrait.";
 
-    const isArabic = ["histoire", "arabe", "islamique"].includes(subject);
-
-    const prompt = isArabic
-      ? `أنت مساعد دراسي. استخرج النص الكامل من هذا الملف الدراسي (PDF أو مستند).
-
-القواعد:
-- استخرج كل النص المقروء بدقة
-- حافظ على البنية (عناوين، فقرات، نقاط، جداول إن أمكن)
-- أبقِ اللغة الأصلية (عربية أو فرنسية)
-- لا تضف أي تعليق أو شرح
-- أعد النص المستخرج فقط`
-      : `Tu es un assistant scolaire. Extrais le texte complet de ce document scolaire (PDF ou fichier).
-
-Règles :
-- Extrais tout le texte lisible avec précision
-- Conserve la structure (titres, paragraphes, puces, tableaux si possible)
-- Garde la langue originale (français ou arabe)
-- N'ajoute aucun commentaire ni explication
-- Retourne UNIQUEMENT le texte extrait`;
-
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType: mimeType || "application/pdf",
-          data: base64,
-        },
-      },
-      { text: prompt },
+    const text = await generateWithGemini([
+      { type: "text", text: prompt },
+      normalizedMime === "application/pdf"
+        ? { type: "document", data: base64, mime_type: normalizedMime }
+        : { type: "image", data: base64, mime_type: normalizedMime },
     ]);
+    if (text.length < 10) return NextResponse.json({ error: "Impossible d'extraire du texte de ce fichier." }, { status: 422 });
 
-    const text = result.response.text().trim();
-
-    if (!text || text.length < 10) {
-      return NextResponse.json(
-        { error: "Impossible d'extraire du texte de ce fichier" },
-        { status: 422 }
-      );
-    }
-
-    // Suggest a title from filename
-    const suggestedTitle = fileName
-      ? fileName.replace(/\.(pdf|txt|md|text)$/i, "").replace(/[_-]/g, " ")
+    const suggestedTitle = typeof fileName === "string"
+      ? fileName.replace(/\.(pdf|txt|md|text|png|jpe?g|webp)$/i, "").replace(/[_-]/g, " ")
       : "";
-
     return NextResponse.json({ text, suggestedTitle });
-  } catch (e: any) {
-    console.error(e);
-    return NextResponse.json(
-      { error: e.message || "Erreur lors de l'extraction du fichier" },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error("extract-file API:", error);
+    return NextResponse.json({ error: errorMessage(error, "Erreur lors de l'extraction du fichier") }, { status: 500 });
   }
 }

@@ -1,47 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { errorMessage, generateWithGemini } from "@/lib/ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY manquante" },
-        { status: 500 }
-      );
+    const { content, language = "fr" } = await req.json();
+    if (typeof content !== "string" || content.trim().length < 30) {
+      return NextResponse.json({ error: "Contenu trop court (minimum 30 caractères)" }, { status: 400 });
+    }
+    if (content.length > 60_000) {
+      return NextResponse.json({ error: "Le contenu dépasse la limite autorisée (60 000 caractères)." }, { status: 413 });
     }
 
-    const { content } = await req.json();
-    if (!content || content.length < 30) {
-      return NextResponse.json(
-        { error: "Contenu trop court" },
-        { status: 400 }
-      );
-    }
+    const prompt = language === "ar"
+      ? `أنت أستاذ للسنة الثالثة إعدادي بالمغرب. لخّص الدرس التالي بالعربية الفصحى، بشكل واضح ومنظم ومناسب للمراجعة. استعمل عناوين ونقاط عند الحاجة، ولا تتجاوز 150 كلمة. لا تخترع معلومات غير موجودة في الدرس.\n\nالدرس:\n${content}`
+      : `Tu es un professeur de collège (3AC Maroc). Résume cette leçon en français, de façon claire, structurée et concise. Utilise des titres et des puces si nécessaire. Maximum 150 mots. N'invente aucune information absente du cours.\n\nLeçon :\n${content}`;
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      generationConfig: { temperature: 0.4 },
-    });
-
-    const prompt = `Tu es un professeur de collège (3AC Maroc).
-Fais un résumé clair, structuré et concis de cette leçon en français.
-Utilise des puces si nécessaire. Maximum 150 mots.
-
-Leçon :
-"""
-${content}
-"""`;
-
-    const result = await model.generateContent(prompt);
-    const summary = result.response.text();
+    const summary = await generateWithGemini(prompt);
     return NextResponse.json({ summary });
-  } catch (e: any) {
-    console.error(e);
-    return NextResponse.json(
-      { error: e.message || "Erreur" },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error("summary API:", error);
+    return NextResponse.json({ error: errorMessage(error, "Erreur lors du résumé") }, { status: 500 });
   }
 }
