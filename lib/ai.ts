@@ -50,7 +50,7 @@ export async function generateWithGemini(
   }
 
   const ai = new GoogleGenAI({ apiKey });
-  const models = [...new Set([PRIMARY_MODEL, ...FALLBACK_MODELS])];
+  const models = [PRIMARY_MODEL, ...FALLBACK_MODELS].filter((model, index, all) => all.indexOf(model) === index);
   let lastError: unknown;
 
   for (let index = 0; index < models.length; index++) {
