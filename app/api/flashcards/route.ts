@@ -1,59 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { errorMessage, generateWithGemini, parseGeminiJson } from "@/lib/ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+export const runtime = "nodejs";
+type Card = { front: string; back: string };
 
 export async function POST(req: NextRequest) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY manquante" },
-        { status: 500 }
-      );
+    const { content, subject, language } = await req.json();
+    if (typeof content !== "string" || content.trim().length < 30) {
+      return NextResponse.json({ error: "Contenu trop court (minimum 30 caractères)" }, { status: 400 });
     }
+    if (content.length > 60_000) return NextResponse.json({ error: "Contenu trop long (maximum 60 000 caractères)" }, { status: 413 });
+    const arabic = language === "ar" || ["histoire", "arabe", "islamique"].includes(subject);
 
-    const { content, subject } = await req.json();
-    if (!content || content.length < 30) {
-      return NextResponse.json(
-        { error: "Contenu trop court" },
-        { status: 400 }
-      );
-    }
+    const prompt = `Tu es un professeur de 3ème année collège au Maroc. Crée exactement 8 flashcards de révision à partir du cours.
+Langue : ${arabic ? "arabe standard moderne" : "français"}.
+Chaque carte contient "front" (question ou terme court) et "back" (réponse claire, concise et exacte). Niveau 3AC. N'ajoute aucune information extérieure au cours.
+Retourne uniquement ce JSON : {"cards":[{"front":"...","back":"..."}]}
+COURS :
+${content}`;
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.6,
-      },
-    });
-
-    const prompt = `Tu es un professeur de 3ème année collège (Maroc).
-À partir de cette leçon, génère exactement 8 flashcards de révision.
-
-Règles :
-- front = question ou terme court
-- back = réponse claire et concise
-- Adapté au niveau 3AC
-- En français
-
-Format JSON strict :
-{ "cards": [ { "front": "...", "back": "..." } ] }
-
-Leçon :
-"""
-${content}
-"""`;
-
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const parsed = JSON.parse(text);
-    return NextResponse.json(parsed);
-  } catch (e: any) {
-    console.error(e);
-    return NextResponse.json(
-      { error: e.message || "Erreur" },
-      { status: 500 }
-    );
+    const raw = await generateWithGemini(prompt);
+    const parsed = parseGeminiJson<{ cards: Card[] }>(raw);
+    const cards = Array.isArray(parsed.cards) ? parsed.cards.slice(0, 8).filter((card) =>
+      typeof card.front === "string" && card.front.trim() &&
+      typeof card.back === "string" && card.back.trim()
+    ) : [];
+    if (!cards.length) throw new Error("Aucune flashcard valide n'a été générée.");
+    return NextResponse.json({ cards });
+  } catch (error) {
+    console.error("flashcards API:", error);
+    return NextResponse.json({ error: errorMessage(error, "Erreur lors de la génération des flashcards") }, { status: 500 });
   }
 }
