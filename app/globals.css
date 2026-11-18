@@ -14,27 +14,84 @@ body {
 }
 
 /* Flashcard 3D */
-.perspective-1000 {
-  perspective: 1000px;
-}
-.preserve-3d {
-  transform-style: preserve-3d;
-}
-.backface-hidden {
-  backface-visibility: hidden;
-}
+.perspective-1000 { perspective: 1000px; }
+.preserve-3d { transform-style: preserve-3d; }
+.backface-hidden { backface-visibility: hidden; }
 
 /* Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #0f172a;
-}
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #0f172a; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Mind maps: print on a clean A4 landscape page or save as PDF. */
+@page { size: A4 landscape; margin: 10mm; }
+
+@media print {
+  html, body {
+    width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #111827 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body * { visibility: hidden !important; }
+  .mindmap-print-area, .mindmap-print-area * { visibility: visible !important; }
+  .mindmap-print-controls, .mindmap-glow { display: none !important; }
+
+  .mindmap-print-shell {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .mindmap-print-area {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    color: #111827 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .mindmap-print-area .mindmap-tree { gap: 12mm !important; padding: 3mm 0 !important; }
+  .mindmap-print-area .mindmap-root-node,
+  .mindmap-print-area .mindmap-node-button {
+    color: #111827 !important;
+    background: #f1f5f9 !important;
+    border: 1px solid #94a3b8 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    transform: none !important;
+  }
+
+  .mindmap-print-area .mindmap-root-node {
+    background: #dbeafe !important;
+    border: 2px solid #64748b !important;
+    font-size: 16pt !important;
+  }
+
+  .mindmap-print-area .mindmap-branches { align-items: flex-start !important; gap: 5mm !important; }
+  .mindmap-print-area .mindmap-branch {
+    min-width: 0 !important;
+    max-width: none !important;
+    flex: 1 1 0 !important;
+    break-inside: avoid !important;
+  }
+  .mindmap-print-area .mindmap-node,
+  .mindmap-print-area .mindmap-children { break-inside: avoid !important; }
+  .mindmap-print-area .mindmap-children { border-color: #94a3b8 !important; }
+  .mindmap-print-area .mindmap-connector { background: #94a3b8 !important; }
+  .mindmap-print-area button { cursor: default !important; text-align: start !important; }
 }
