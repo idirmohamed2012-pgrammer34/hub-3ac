@@ -56,8 +56,8 @@ export async function generateWithGemini(
   for (let index = 0; index < models.length; index++) {
     const model = models[index];
 
-    // Two bounded retries in total, with exponential backoff, avoid hammering
-    // Google's API while still recovering from short capacity spikes.
+    // Try the primary model, then make at most two fallback attempts with
+    // exponential backoff. This follows Google's retry guidance.
     if (index > 0) await wait(RETRY_DELAYS_MS[index - 1] ?? 2_000);
 
     try {
@@ -74,17 +74,6 @@ export async function generateWithGemini(
         throw new Error(errorText(error) || "Erreur Gemini inconnue.");
       }
     }
-  }
-
-  // One final retry on the best fallback model after a longer backoff.
-  const retryModel = models[1] || models[0];
-  await wait(RETRY_DELAYS_MS[1]);
-  try {
-    const result = await requestModel(ai, retryModel, input);
-    console.warn(`Gemini fallback retry succeeded: ${retryModel}`);
-    return result;
-  } catch (error) {
-    lastError = error;
   }
 
   console.error("All Gemini models are temporarily unavailable:", lastError);
