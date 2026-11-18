@@ -1,80 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { errorMessage, generateWithGemini } from "@/lib/ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY manquante" },
-        { status: 500 }
-      );
-    }
-
     const { image, mimeType, subject } = await req.json();
-
-    if (!image) {
-      return NextResponse.json(
-        { error: "Aucune image fournie" },
-        { status: 400 }
-      );
+    if (typeof image !== "string" || !image.trim()) {
+      return NextResponse.json({ error: "Aucune image fournie" }, { status: 400 });
+    }
+    const normalizedMime = typeof mimeType === "string" && /^image\/(jpeg|png|webp|heic|heif)$/i.test(mimeType)
+      ? mimeType : "image/jpeg";
+    const base64 = image.replace(/^data:image\/[\w.+-]+;base64,/i, "").replace(/\s/g, "");
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64) || base64.length > 18_000_000) {
+      return NextResponse.json({ error: "Image invalide ou trop volumineuse (maximum environ 13 Mo)." }, { status: 400 });
     }
 
-    // Remove data URL prefix if present
-    const base64 = image.replace(/^data:image\/\w+;base64,/, "");
+    const arabic = ["histoire", "arabe", "islamique"].includes(subject);
+    const prompt = arabic
+      ? "استخرج النص المقروء من صورة الدرس بدقة. حافظ على العناوين والفقرات والنقاط واللغة الأصلية. لا تشرح ولا تلخص. أعد النص المستخرج فقط."
+      : "Extrais fidèlement tout le texte lisible de cette photo de cours. Préserve les titres, paragraphes, listes et la langue d'origine. Ne résume pas et n'ajoute aucun commentaire. Retourne uniquement le texte extrait.";
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      generationConfig: { temperature: 0.2 },
-    });
-
-    const isArabic = ["histoire", "arabe", "islamique"].includes(subject);
-
-    const prompt = isArabic
-      ? `أنت مساعد دراسي. استخرج النص الكامل من صورة هذا الدرس المدرسي.
-
-القواعد:
-- استخرج كل النص المقروء بدقة
-- حافظ على البنية (عناوين، فقرات، نقاط)
-- إذا كان النص بالعربية أبقه بالعربية
-- إذا كان بالفرنسية أبقه بالفرنسية
-- لا تضف أي تعليق أو شرح من عندك
-- أعد النص المستخرج فقط`
-      : `Tu es un assistant scolaire. Extrais le texte complet de cette photo de leçon.
-
-Règles :
-- Extrais tout le texte lisible avec précision
-- Conserve la structure (titres, paragraphes, puces)
-- Garde la langue originale (français ou arabe)
-- N'ajoute aucun commentaire
-- Retourne UNIQUEMENT le texte extrait`;
-
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType: mimeType || "image/jpeg",
-          data: base64,
-        },
-      },
-      { text: prompt },
+    const text = await generateWithGemini([
+      { type: "text", text: prompt },
+      { type: "image", data: base64, mime_type: normalizedMime },
     ]);
-
-    const text = result.response.text().trim();
-
-    if (!text || text.length < 10) {
-      return NextResponse.json(
-        { error: "Impossible d'extraire du texte de cette image" },
-        { status: 422 }
-      );
-    }
-
+    if (text.length < 10) return NextResponse.json({ error: "Impossible d'extraire du texte de cette image." }, { status: 422 });
     return NextResponse.json({ text });
-  } catch (e: any) {
-    console.error(e);
-    return NextResponse.json(
-      { error: e.message || "Erreur lors de l'extraction" },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error("extract API:", error);
+    return NextResponse.json({ error: errorMessage(error, "Erreur lors de l'extraction") }, { status: 500 });
   }
 }
