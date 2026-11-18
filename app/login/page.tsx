@@ -1,12 +1,11 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { GraduationCap, LockKeyhole, Loader2, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,7 +24,7 @@ export default function LoginPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Connexion impossible.");
 
-      const next = searchParams.get("next") || "/";
+      const next = new URLSearchParams(window.location.search).get("next") || "/";
       router.replace(next.startsWith("/") && !next.startsWith("//") ? next : "/");
       router.refresh();
     } catch (cause) {
